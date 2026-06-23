@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0d0d1a"/>
+<title>Woop!</title>
+<link rel="manifest" href="manifest.json"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --sun:#FFD600;
+  --sun-glow:#FF8C00;
+  --sun-hot:#FFF176;
+  --bg:#0d0d1a;
+  --surface:#16162a;
+  --surface2:#1e1e35;
+  --text:#e8e8f0;
+  --muted:#6b6b90;
+  --del:#ff4757;
+}
+
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);
+  display:flex;flex-direction:column;height:100dvh;user-select:none;
+}
+
+.view{display:none;flex:1;flex-direction:column;overflow:hidden}
+.view.active{display:flex}
+
+nav{
+  display:flex;background:var(--surface);
+  border-top:1px solid rgba(255,255,255,.06);
+  padding-bottom:env(safe-area-inset-bottom);flex-shrink:0;
+}
+nav button{
+  flex:1;padding:.7rem .5rem .5rem;background:none;border:none;
+  font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:.25rem;transition:color .15s;
+}
+nav button .nav-icon{font-size:1.3rem;line-height:1}
+nav button.active{color:var(--sun)}
+
+/* ══ VIEW MAIN ══ */
+#view-main{align-items:center;justify-content:space-between;padding:1.5rem 1.25rem 1rem;}
+
+.top-status{text-align:center;width:100%;}
+.med-name{font-size:.75rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;}
+.today-count{font-size:2.8rem;font-weight:800;color:var(--sun);line-height:1;}
+.today-label{font-size:.78rem;color:var(--muted);margin-top:.2rem;}
+
+.btn-wrap{display:flex;align-items:center;justify-content:center;flex:1;position:relative;}
+
+/* BOTÓN AMARILLO - sin emoji sol */
+.sun-btn{
+  width:220px;height:220px;border-radius:50%;border:none;
+  background:radial-gradient(circle at 38% 36%, var(--sun-hot) 0%, var(--sun) 45%, var(--sun-glow) 100%);
+  cursor:pointer;position:relative;
+  box-shadow:0 0 40px 8px rgba(255,214,0,.35),0 0 80px 20px rgba(255,140,0,.18);
+  transition:transform .1s ease,box-shadow .1s ease,opacity .3s ease;
+  -webkit-tap-highlight-color:transparent;
+  overflow:hidden;
+}
+.sun-btn:active{transform:scale(.95);}
+
+/* hint text dentro del botón */
+.btn-hint{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:700;color:rgba(0,0,0,.45);
+  letter-spacing:.06em;text-transform:uppercase;line-height:1.4;
+  pointer-events:none;
+}
+
+/* ESTADO: YA TOMADO */
+.sun-btn.done{
+  background:radial-gradient(circle at 38% 36%,#2a2a2a 0%,#1a1a2e 100%);
+  box-shadow:0 0 20px 4px rgba(255,214,0,.1);
+  cursor:not-allowed;
+  opacity:.55;
+}
+.sun-btn.done .btn-hint{color:rgba(255,214,0,.5);}
+
+/* ripple primer tap */
+.ripple{
+  position:absolute;border-radius:50%;
+  background:rgba(255,255,255,.35);
+  transform:scale(0);animation:ripple-anim .4s ease-out forwards;
+  pointer-events:none;
+}
+@keyframes ripple-anim{to{transform:scale(4);opacity:0}}
+
+/* countdown hasta 5am */
+.countdown{
+  font-size:.72rem;color:var(--muted);text-align:center;width:100%;min-height:1.4rem;
+}
+.countdown strong{color:var(--sun);}
+
+/* last entry */
+.last-entry{font-size:.82rem;color:var(--muted);text-align:center;width:100%;min-height:1.4rem;}
+.last-entry strong{color:var(--text);}
+
+/* ══ SUPERMAN OVERLAY ══ */
+#superman-overlay{
+  position:fixed;
+  top:0;left:0;right:0;
+  bottom:60px;
+  z-index:10;
+  display:none;
+  align-items:center;justify-content:center;
+  background:rgba(13,13,26,.78);
+  pointer-events:none;
+}
+#superman-overlay.active{display:flex;}
+
+.superman-scene{
+  position:relative;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+
+/* Superman SVG container */
+.superman-figure{
+  position:absolute;
+  left:-160px;bottom:20%;
+  width:120px;
+  opacity:0;
+  filter:drop-shadow(0 0 20px rgba(255,214,0,.6));
+}
+.superman-figure.fly-in{
+  animation:superman-fly 2.8s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes superman-fly{
+  0%  {left:-160px;bottom:10%;opacity:0;transform:rotate(-15deg) scale(.8);}
+  30% {left:50%;bottom:50%;opacity:1;transform:translateX(-50%) translateY(50%) rotate(0deg) scale(1.1);}
+  55% {left:50%;bottom:50%;transform:translateX(-50%) translateY(50%) rotate(0deg) scale(1.15);}
+  80% {left:50%;bottom:50%;transform:translateX(-50%) translateY(50%) rotate(0deg) scale(1);}
+  100%{left:50%;bottom:50%;transform:translateX(-50%) translateY(50%) rotate(0deg) scale(1);opacity:1;}
+}
+
+/* Stars burst */
+.burst{
+  position:absolute;left:50%;top:50%;
+  width:0;height:0;
+  pointer-events:none;
+}
+.burst-star{
+  position:absolute;
+  font-size:1.4rem;
+  opacity:0;
+  transform:translate(-50%,-50%) scale(0);
+}
+.burst-star.pop{
+  animation:star-pop .6s ease-out forwards;
+}
+@keyframes star-pop{
+  0%  {opacity:0;transform:translate(-50%,-50%) scale(0);}
+  50% {opacity:1;transform:translate(var(--tx),var(--ty)) scale(1.3);}
+  100%{opacity:0;transform:translate(calc(var(--tx)*1.8),calc(var(--ty)*1.8)) scale(.5);}
+}
+
+/* Caption */
+.superman-caption{
+  position:absolute;bottom:22%;left:0;right:0;
+  text-align:center;
+  font-size:1.4rem;font-weight:900;
+  color:var(--sun);
+  letter-spacing:.06em;text-transform:uppercase;
+  opacity:0;transform:scale(.7);
+  text-shadow:0 0 30px rgba(255,214,0,.8);
+}
+.superman-caption.show{
+  animation:caption-pop .5s .9s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes caption-pop{
+  to{opacity:1;transform:scale(1);}
+}
+
+/* ══ LOG VIEW ══ */
+#view-log{padding:1.25rem;overflow-y:auto;gap:.6rem}
+.log-header{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.25rem;flex-shrink:0;}
+.log-list{display:flex;flex-direction:column;gap:.5rem;overflow-y:auto;flex:1}
+.log-day-group{margin-bottom:.25rem}
+.log-day-label{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sun);opacity:.7;padding:.4rem 0 .3rem;position:sticky;top:0;background:var(--bg);}
+.log-item{display:flex;align-items:center;gap:.75rem;background:var(--surface);border-radius:12px;padding:.7rem .9rem;border:1px solid rgba(255,255,255,.05);}
+.log-dot{width:8px;height:8px;border-radius:50%;background:var(--sun);flex-shrink:0;}
+.log-time{font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text);flex:1;}
+.log-del{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:.25rem .35rem;border-radius:8px;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
+.log-del:active{color:var(--del);background:rgba(255,71,87,.1)}
+.empty-log{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:.9rem;gap:.5rem;text-align:center;}
+.empty-log .big{font-size:3rem}
+
+/* ══ CHART VIEW ══ */
+#view-chart{padding:1.25rem;overflow-y:auto;gap:1rem}
+.chart-header{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);flex-shrink:0;}
+.heatmap-wrap{background:var(--surface);border-radius:14px;padding:1rem;border:1px solid rgba(255,255,255,.05);flex-shrink:0;}
+.heatmap-title{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem;}
+.heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.hm-day-label{font-size:.6rem;color:var(--muted);text-align:center;padding:.2rem 0;font-weight:600;}
+.hm-cell{aspect-ratio:1;border-radius:4px;background:var(--surface2);}
+.hm-cell[data-c="0"]{background:var(--surface2)}
+.hm-cell[data-c="1"]{background:var(--sun)}
+.hm-cell.today-cell{outline:2px solid var(--sun);outline-offset:1px}
+.hm-cell.future{background:transparent;opacity:.15}
+.time-chart-wrap{background:var(--surface);border-radius:14px;padding:1rem;border:1px solid rgba(255,255,255,.05);flex:1;min-height:180px;}
+.time-chart-title{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem;}
+canvas#timeChart{width:100%!important}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;flex-shrink:0;}
+.stat-box{background:var(--surface);border-radius:12px;padding:.8rem .6rem;text-align:center;border:1px solid rgba(255,255,255,.05);}
+.stat-val{font-size:1.6rem;font-weight:800;color:var(--sun)}
+.stat-lbl{font-size:.65rem;color:var(--muted);margin-top:.15rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.settings-box{background:var(--surface);border-radius:14px;padding:1rem;border:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
+.settings-label{font-size:.8rem;color:var(--muted);flex:1}
+.settings-input{background:var(--surface2);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);font-size:.9rem;font-weight:600;padding:.4rem .6rem;width:8rem;font-family:inherit;text-align:center;}
+.settings-input:focus{outline:2px solid var(--sun);border-color:transparent}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:5rem;left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--sun);color:#0d0d1a;
+  padding:.55rem 1.2rem;border-radius:30px;
+  font-size:.85rem;font-weight:700;
+  box-shadow:0 4px 24px rgba(255,214,0,.4);
+  opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;
+  white-space:nowrap;z-index:999;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ══ VIEW MAIN ══ -->
+<section class="view active" id="view-main">
+  <div class="top-status">
+    <div class="med-name" id="medNameDisplay">Medicamento</div>
+    <div class="today-count" id="todayCount">—</div>
+    <div class="today-label" id="todayLabel">Pendiente</div>
+  </div>
+
+  <div class="btn-wrap">
+    <button class="sun-btn" id="sunBtn" aria-label="Registrar toma (doble toque)">
+      <div class="btn-hint" id="btnHint">
+        <span>doble</span>
+        <span>toque</span>
+      </div>
+    </button>
+  </div>
+
+  <div class="last-entry" id="lastEntry">Sin registros todavía</div>
+  <div class="countdown" id="countdown"></div>
+</section>
+
+<!-- ══ VIEW LOG ══ -->
+<section class="view" id="view-log">
+  <div class="log-header">Registro de tomas</div>
+  <div class="log-list" id="logList"></div>
+</section>
+
+<!-- ══ VIEW CHART ══ -->
+<section class="view" id="view-chart">
+  <div class="chart-header">Evolución</div>
+  <div class="stats-row" id="statsRow"></div>
+  <div class="heatmap-wrap">
+    <div class="heatmap-title">Últimas 12 semanas</div>
+    <div class="heatmap-grid" id="heatmapGrid"></div>
+  </div>
+  <div class="time-chart-wrap">
+    <div class="time-chart-title">Hora de toma (últimos 30 días)</div>
+    <canvas id="timeChart" height="160"></canvas>
+  </div>
+  <div class="settings-box">
+    <div class="settings-label">Nombre del medicamento</div>
+    <input class="settings-input" id="medNameInput" type="text" maxlength="24" placeholder="ej. Eutirox"/>
+  </div>
+  <div class="settings-box" onclick="decrementRecetas()" style="cursor:pointer;">
+    <div class="settings-label">Recetas disponibles</div>
+    <div id="recetasVal" style="font-size:2rem;font-weight:800;color:var(--sun);min-width:2.5rem;text-align:center;line-height:1;">5</div>
+  </div>
+
+  <!-- MÉDICO -->
+  <div class="settings-box" onclick="toggleMedico()" style="cursor:pointer;flex-direction:column;align-items:stretch;gap:.6rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div class="settings-label" style="margin:0;">Médico / Receta</div>
+      <div id="medicoArrow" style="color:var(--muted);font-size:.85rem;transition:transform .2s;">▼</div>
+    </div>
+    <div id="medicoInfo" style="display:none;font-size:.82rem;line-height:1.7;color:var(--text);border-top:1px solid rgba(255,255,255,.07);padding-top:.6rem;">
+      <div><span style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;">Nombre</span><br>Tore Tveit Knudsen</div>
+      <div style="margin-top:.5rem;"><span style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;">Dirección</span><br>Amagerbrogade 17, 2</div>
+      <div style="margin-top:.5rem;"><span style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;">Teléfono</span><br><a href="tel:+4532958550" style="color:var(--sun);text-decoration:none;font-weight:600;" onclick="event.stopPropagation();return confirmCall(event)">+45 32 95 85 50</a></div>
+      <div style="margin-top:.75rem;border-top:1px solid rgba(255,255,255,.07);padding-top:.6rem;">
+        <span style="color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;">Hours</span>
+        <div style="margin-top:.4rem;display:flex;flex-direction:column;gap:.3rem;">
+          <div><span style="color:var(--muted);">📞 Phone:</span> Mon–Fri 08:00–09:00</div>
+          <div><span style="color:var(--muted);">🚶 Walk-in:</span> Mon–Fri 11:00–12:00</div>
+          <div style="margin-top:.3rem;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;">By appointment</div>
+          <div><span style="color:var(--muted);">Mon, Tue, Thu:</span> 09:00–15:00</div>
+          <div><span style="color:var(--muted);">Wed:</span> 09:00–16:15</div>
+          <div><span style="color:var(--muted);">Fri:</span> 09:00–14:00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <button class="active" onclick="goTo('main',this)">
+    <span class="nav-icon"><svg width="22" height="22" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <!-- stem -->
+      <rect x="11" y="19" width="10" height="9" rx="3" fill="#f5e6c8"/>
+      <!-- cap -->
+      <path d="M4 19 Q4 6 16 6 Q28 6 28 19Z" fill="#FFD600"/>
+      <!-- spots -->
+      <circle cx="12" cy="13" r="2.5" fill="white" opacity=".85"/>
+      <circle cx="20" cy="11" r="2" fill="white" opacity=".85"/>
+      <circle cx="22" cy="17" r="1.8" fill="white" opacity=".85"/>
+      <circle cx="9" cy="17" r="1.5" fill="white" opacity=".85"/>
+      <!-- cap rim -->
+      <path d="M4 19 Q16 22 28 19" stroke="#e6c800" stroke-width="1.2" fill="none"/>
+    </svg></span>Tomar
+  </button>
+  <button onclick="goTo('log',this)">
+    <span class="nav-icon">📋</span>Registro
+  </button>
+  <button onclick="goTo('chart',this)">
+    <span class="nav-icon">📊</span>Gráfico
+  </button>
+</nav>
+
+<!-- ══ SUPERMAN OVERLAY ══ -->
+<div id="superman-overlay">
+  <div class="superman-scene" id="supermanScene">
+    <div class="burst" id="burst"></div>
+    <!-- Superman SVG inline -->
+    <div class="superman-figure" id="supermanFig">
+      <svg viewBox="0 0 120 160" xmlns="http://www.w3.org/2000/svg">
+        <!-- Cape -->
+        <path d="M55 65 Q20 90 15 140 Q40 110 60 105 Q80 110 105 140 Q100 90 65 65Z" fill="#CC0000"/>
+        <!-- Body -->
+        <rect x="42" y="60" width="36" height="50" rx="8" fill="#1565C0"/>
+        <!-- S shield -->
+        <path d="M60 68 L72 76 L68 90 L60 94 L52 90 L48 76Z" fill="#FFD600"/>
+        <path d="M60 72 L69 79 L66 89 L60 92 L54 89 L51 79Z" fill="#CC0000"/>
+        <text x="60" y="87" text-anchor="middle" font-family="serif" font-weight="900" font-size="12" fill="#FFD600">S</text>
+        <!-- Head -->
+        <ellipse cx="60" cy="45" rx="16" ry="18" fill="#FDBCB4"/>
+        <!-- Hair -->
+        <path d="M44 38 Q46 22 60 20 Q74 22 76 38 Q72 30 60 31 Q48 30 44 38Z" fill="#1A1A1A"/>
+        <!-- Curl -->
+        <path d="M56 32 Q58 28 62 32" stroke="#1A1A1A" stroke-width="2" fill="none"/>
+        <!-- Eyes -->
+        <ellipse cx="54" cy="44" rx="3" ry="2.5" fill="#1565C0"/>
+        <ellipse cx="66" cy="44" rx="3" ry="2.5" fill="#1565C0"/>
+        <!-- Smile -->
+        <path d="M54 52 Q60 57 66 52" stroke="#333" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- Arms extended (flying pose) -->
+        <path d="M42 70 Q20 60 10 50" stroke="#1565C0" stroke-width="10" stroke-linecap="round" fill="none"/>
+        <ellipse cx="8" cy="49" rx="7" ry="5" fill="#FDBCB4" transform="rotate(-20 8 49)"/>
+        <!-- Right arm back -->
+        <path d="M78 75 Q95 85 100 90" stroke="#1565C0" stroke-width="8" stroke-linecap="round" fill="none"/>
+        <!-- Legs -->
+        <path d="M50 108 Q47 130 45 155" stroke="#1565C0" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <path d="M70 108 Q73 130 75 155" stroke="#1565C0" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <!-- Boots -->
+        <ellipse cx="44" cy="155" rx="7" ry="5" fill="#CC0000"/>
+        <ellipse cx="76" cy="155" rx="7" ry="5" fill="#CC0000"/>
+        <!-- Belt -->
+        <rect x="42" y="95" width="36" height="8" rx="3" fill="#FFD600"/>
+        <rect x="57" y="94" width="6" height="10" rx="2" fill="#CC0000"/>
+      </svg>
+    </div>
+    <div class="superman-caption" id="supCaption">¡Misión cumplida!</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STORAGE ───────────────────────────────────────────────
+let logs    = JSON.parse(localStorage.getItem('sol_logs') || '[]');
+let medName = localStorage.getItem('sol_med') || 'Medicamento';
+let recetas = parseInt(localStorage.getItem('sol_recetas') ?? '5');
+function save(){
+  localStorage.setItem('sol_logs', JSON.stringify(logs));
+  localStorage.setItem('sol_med', medName);
+  localStorage.setItem('sol_recetas', recetas);
+}
+
+function confirmCall(e){
+  e.preventDefault();
+  if(confirm('¿Llamar a Tore Tveit Knudsen?\n+45 32 95 85 50')){
+    window.location.href = 'tel:+4532958550';
+  }
+  return false;
+}
+
+function toggleMedico(){
+  const info  = document.getElementById('medicoInfo');
+  const arrow = document.getElementById('medicoArrow');
+  const open  = info.style.display === 'none';
+  info.style.display  = open ? 'block' : 'none';
+  arrow.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function decrementRecetas(){
+  recetas = recetas <= 0 ? 5 : recetas - 1;
+  save();
+  const el = document.getElementById('recetasVal');
+  if(el) el.textContent = recetas;
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function fmtTime(iso){ return new Date(iso).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(iso){ return new Date(iso).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'}); }
+function fmtDateShort(iso){ const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`; }
+
+// "Day" resets at 5am
+function currentDay(){
+  const n = new Date();
+  if(n.getHours() < 5){ n.setDate(n.getDate()-1); }
+  return n.toISOString().slice(0,10);
+}
+
+function next5am(){
+  const n = new Date();
+  const target = new Date(n);
+  if(n.getHours() >= 5){
+    target.setDate(target.getDate()+1);
+  }
+  target.setHours(5,0,0,0);
+  return target;
+}
+
+function isTakenToday(){
+  const day = currentDay();
+  return logs.some(l => logDay(l.ts) === day);
+}
+
+function logDay(iso){
+  const d = new Date(iso);
+  if(d.getHours() < 5){ d.setDate(d.getDate()-1); }
+  return d.toISOString().slice(0,10);
+}
+
+// ── NAV ───────────────────────────────────────────────────
+function goTo(view, btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(view==='log')   renderLog();
+  if(view==='chart') renderChart();
+  if(view==='main')  updateMain();
+  // Superman only visible on main tab — never re-trigger, just show/hide
+  const overlay = document.getElementById('superman-overlay');
+  if(view === 'main'){
+    if(supermanVisible) overlay.style.display = 'flex';
+  } else {
+    overlay.style.display = 'none';
+  }
+}
+
+// ── MAIN VIEW ─────────────────────────────────────────────
+function updateMain(){
+  const taken = isTakenToday();
+  const btn   = document.getElementById('sunBtn');
+  const hint  = document.getElementById('btnHint');
+  const countEl = document.getElementById('todayCount');
+  const labelEl = document.getElementById('todayLabel');
+  const lastEl  = document.getElementById('lastEntry');
+
+  document.getElementById('medNameDisplay').textContent = medName;
+
+  if(taken){
+    btn.classList.add('done');
+    hint.innerHTML = '<span>✓</span><span>tomado</span>';
+    countEl.textContent = '✓';
+    labelEl.textContent = 'Toma de hoy registrada';
+    startCountdown();
+  } else {
+    btn.classList.remove('done');
+    hint.innerHTML = '<span>doble</span><span>toque</span>';
+    countEl.textContent = '—';
+    labelEl.textContent = 'Pendiente';
+    document.getElementById('countdown').textContent = '';
+    clearInterval(cdInterval);
+  }
+
+  const last = logs[0];
+  if(last){
+    lastEl.innerHTML = `Última: <strong>${fmtTime(last.ts)}</strong> · ${fmtDateShort(last.ts)}`;
+  } else {
+    lastEl.textContent = 'Sin registros todavía';
+  }
+}
+
+// ── COUNTDOWN ────────────────────────────────────────────
+let cdInterval;
+function startCountdown(){
+  clearInterval(cdInterval);
+  function tick(){
+    const diff = next5am() - Date.now();
+    if(diff <= 0){ clearInterval(cdInterval); updateMain(); return; }
+    const h = Math.floor(diff/3600000);
+    const m = Math.floor((diff%3600000)/60000);
+    const s = Math.floor((diff%60000)/1000);
+    document.getElementById('countdown').innerHTML =
+      `Se reactiva en <strong>${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</strong>`;
+  }
+  tick();
+  cdInterval = setInterval(tick, 1000);
+}
+
+// ── DOUBLE TAP ───────────────────────────────────────────
+let tapTimer = null;
+const TAP_DELAY = 350; // ms
+
+const sunBtn = document.getElementById('sunBtn');
+
+sunBtn.addEventListener('click', function(e){
+  if(isTakenToday()) return; // bloqueado
+
+  if(tapTimer){
+    // SEGUNDO TAP → registrar
+    clearTimeout(tapTimer);
+    tapTimer = null;
+    doRipple(e);
+    registerDose();
+  } else {
+    // PRIMER TAP → esperar segundo
+    doRipple(e);
+    tapTimer = setTimeout(()=>{ tapTimer=null; }, TAP_DELAY);
+  }
+});
+
+// Soporte táctil para evitar delay de 300ms en móvil
+sunBtn.addEventListener('touchend', function(e){
+  e.preventDefault();
+  sunBtn.click();
+}, {passive:false});
+
+function doRipple(e){
+  const btn = sunBtn;
+  const rect = btn.getBoundingClientRect();
+  const x = (e.clientX||rect.left+rect.width/2) - rect.left;
+  const y = (e.clientY||rect.top+rect.height/2) - rect.top;
+  const r = document.createElement('span');
+  r.className='ripple';
+  const size = Math.max(rect.width,rect.height);
+  r.style.cssText=`width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px`;
+  btn.appendChild(r);
+  r.addEventListener('animationend',()=>r.remove());
+}
+
+function registerDose(){
+  const entry = { id: Date.now().toString(), ts: new Date().toISOString() };
+  logs.unshift(entry);
+  save();
+  updateMain();
+  showSuperman(fmtTime(entry.ts));
+}
+
+// ── SUPERMAN ─────────────────────────────────────────────
+let supTimer1 = null, supTimer2 = null;
+let supermanVisible = false;
+
+function hideSuperman(){
+  supermanVisible = false;
+  clearTimeout(supTimer1); clearTimeout(supTimer2);
+  supTimer1 = supTimer2 = null;
+  const overlay = document.getElementById('superman-overlay');
+  overlay.classList.remove('active');
+  overlay.style.display = '';
+  // Reset all animation state so next show starts clean
+  document.getElementById('supermanFig').className = 'superman-figure';
+  document.getElementById('supCaption').className  = 'superman-caption';
+  document.getElementById('burst').innerHTML       = '';
+}
+
+function showSuperman(timeStr){
+  const overlay = document.getElementById('superman-overlay');
+  const fig     = document.getElementById('supermanFig');
+  const caption = document.getElementById('supCaption');
+  const burst   = document.getElementById('burst');
+
+  // Cancel any in-progress animation
+  clearTimeout(supTimer1); clearTimeout(supTimer2);
+
+  // Full reset before showing
+  fig.className = 'superman-figure';
+  caption.className = 'superman-caption';
+  burst.innerHTML = '';
+  overlay.classList.remove('active');
+
+  // Force reflow so CSS animation restarts cleanly
+  void overlay.offsetWidth;
+  void fig.offsetWidth;
+
+  supermanVisible = true;
+  overlay.classList.add('active');
+  fig.classList.add('fly-in');
+
+  // Stars burst at 0.9s
+  supTimer1 = setTimeout(()=>{
+    const stars = ['⭐','✨','💥','🌟','⚡'];
+    const angles = [0,60,120,180,240,300,45,135,225,315];
+    angles.forEach((a,i)=>{
+      const s = document.createElement('div');
+      s.className='burst-star';
+      const rad = a*(Math.PI/180);
+      const dist = 90 + Math.random()*40;
+      s.style.setProperty('--tx', `${Math.cos(rad)*dist}px`);
+      s.style.setProperty('--ty', `${Math.sin(rad)*dist}px`);
+      s.style.animationDelay = (i*0.04)+'s';
+      s.textContent = stars[i%stars.length];
+      burst.appendChild(s);
+      void s.offsetWidth;
+      s.classList.add('pop');
+    });
+    caption.classList.add('show');
+  }, 900);
+
+  // Superman stays visible until the log entry is deleted
+  showToast('✓ Registrado a las ' + timeStr);
+}
+
+// Tapping the overlay does nothing — Superman stays
+document.getElementById('superman-overlay').addEventListener('click', function(e){
+  e.stopPropagation();
+});
+
+// ── LOG VIEW ─────────────────────────────────────────────
+function renderLog(){
+  const list = document.getElementById('logList');
+  if(!logs.length){
+    list.innerHTML='<div class="empty-log"><div class="big">🍄</div>Sin tomas registradas.<br>Doble toque en el botón amarillo.</div>';
+    return;
+  }
+  const groups={};
+  logs.forEach(l=>{ const d=logDay(l.ts); if(!groups[d])groups[d]=[]; groups[d].push(l); });
+  list.innerHTML=Object.keys(groups).sort((a,b)=>b.localeCompare(a)).map(date=>{
+    const items=groups[date];
+    const label=date===currentDay()?'Hoy':fmtDate(date+'T12:00:00');
+    return `<div class="log-day-group">
+      <div class="log-day-label">${label}</div>
+      ${items.map(l=>`
+        <div class="log-item" id="log-${l.id}">
+          <div class="log-dot"></div>
+          <div class="log-time">${fmtTime(l.ts)}</div>
+          <button class="log-del" onclick="deleteEntry('${l.id}')" aria-label="Eliminar">✕</button>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function deleteEntry(id){
+  const el=document.getElementById('log-'+id);
+  if(el){el.style.opacity='.3';el.style.transform='scale(.95)';}
+  setTimeout(()=>{
+    logs=logs.filter(l=>l.id!==id);
+    save();
+    hideSuperman();
+    updateMain();
+    renderLog();
+  },220);
+}
+
+// ── CHART VIEW ───────────────────────────────────────────
+function renderChart(){
+  renderStats(); renderHeatmap(); renderTimeChart();
+  const inp=document.getElementById('medNameInput');
+  inp.value=medName;
+  inp.oninput=()=>{ medName=inp.value.trim()||'Medicamento'; save(); updateMain(); };
+  const rv=document.getElementById('recetasVal'); if(rv) rv.textContent=recetas;
+}
+
+function renderStats(){
+  const day=currentDay();
+  const todayC=logs.filter(l=>logDay(l.ts)===day).length;
+  let streak=0;
+  const d=new Date(); if(d.getHours()<5) d.setDate(d.getDate()-1); d.setHours(12,0,0,0);
+  while(true){
+    const ds=d.toISOString().slice(0,10);
+    if(logs.some(l=>logDay(l.ts)===ds)){streak++;d.setDate(d.getDate()-1);}
+    else break;
+    if(streak>3650) break;
+  }
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-box"><div class="stat-val">${todayC?'✓':'—'}</div><div class="stat-lbl">Hoy</div></div>
+    <div class="stat-box"><div class="stat-val">${logs.length}</div><div class="stat-lbl">Total</div></div>
+    <div class="stat-box"><div class="stat-val">${streak}</div><div class="stat-lbl">Racha días</div></div>`;
+}
+
+function renderHeatmap(){
+  const grid=document.getElementById('heatmapGrid');
+  const dayLabels=['L','M','X','J','V','S','D'];
+  let html=dayLabels.map(d=>`<div class="hm-day-label">${d}</div>`).join('');
+  const today=new Date(); today.setHours(12,0,0,0);
+  const todayDs=today.toISOString().slice(0,10);
+  const start=new Date(today); start.setDate(start.getDate()-83);
+  const dow=start.getDay(); start.setDate(start.getDate()-((dow+6)%7));
+  const countMap={};
+  logs.forEach(l=>{ const d=logDay(l.ts); countMap[d]=(countMap[d]||0)+1; });
+  const cur=new Date(start);
+  while(cur<=today){
+    const ds=cur.toISOString().slice(0,10);
+    const c=countMap[ds]||0;
+    const future=cur>today;
+    const isToday=ds===todayDs;
+    html+=`<div class="hm-cell ${future?'future':''} ${isToday?'today-cell':''}" data-c="${future?0:Math.min(c,1)}" title="${ds}"></div>`;
+    cur.setDate(cur.getDate()+1);
+  }
+  grid.innerHTML=html;
+}
+
+function renderTimeChart(){
+  const canvas=document.getElementById('timeChart');
+  const ctx=canvas.getContext('2d');
+  const days30=[];
+  const d=new Date(); if(d.getHours()<5) d.setDate(d.getDate()-1); d.setHours(12,0,0,0);
+  for(let i=29;i>=0;i--){ const dd=new Date(d); dd.setDate(dd.getDate()-i); days30.push(dd.toISOString().slice(0,10)); }
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-32;
+  const H=160;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  const padL=32,padR=10,padT=10,padB=24;
+  const plotW=W-padL-padR,plotH=H-padT-padB;
+  ctx.font=`9px -apple-system,sans-serif`;
+  ctx.fillStyle='#6b6b90'; ctx.textAlign='right';
+  [6,9,12,15,18,21].forEach(h=>{
+    const y=padT+plotH-(h/24)*plotH;
+    ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke();
+    ctx.fillStyle='#6b6b90'; ctx.fillText(h+'h',padL-4,y+3);
+  });
+  ctx.strokeStyle='rgba(255,255,255,.1)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(padL,padT+plotH); ctx.lineTo(padL+plotW,padT+plotH); ctx.stroke();
+  ctx.textAlign='center';
+  days30.forEach((ds,i)=>{
+    if(i%5!==0&&i!==29) return;
+    const x=padL+(i/(days30.length-1))*plotW;
+    const [,m,d2]=ds.split('-');
+    ctx.fillStyle='#6b6b90'; ctx.fillText(`${d2}/${m}`,x,H-6);
+  });
+  // dots
+  ctx.fillStyle='#FFD600';
+  days30.forEach((ds,i)=>{
+    const take=logs.find(l=>logDay(l.ts)===ds);
+    if(!take) return;
+    const hh=new Date(take.ts); const hv=hh.getHours()+hh.getMinutes()/60;
+    const x=padL+(i/(days30.length-1))*plotW;
+    const y=padT+plotH-(hv/24)*plotH;
+    ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,214,0,.3)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(x,y,8,0,Math.PI*2); ctx.stroke();
+  });
+  // today line
+  const tx=padL+(29/(days30.length-1))*plotW;
+  ctx.strokeStyle='rgba(255,214,0,.3)'; ctx.lineWidth=1;
+  ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(tx,padT); ctx.lineTo(tx,padT+plotH); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ── TOAST ────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// Service Worker disabled for GitHub Pages compatibility
+
+// ── INIT ─────────────────────────────────────────────────
+updateMain();
+// If already taken today (e.g. after page reload), show superman in static state
+if(isTakenToday()){
+  const overlay = document.getElementById('superman-overlay');
+  const fig     = document.getElementById('supermanFig');
+  const caption = document.getElementById('supCaption');
+  fig.style.cssText = 'left:50%;bottom:50%;transform:translateX(-50%) translateY(50%);opacity:1;width:120px;';
+  caption.classList.add('show');
+  supermanVisible = true;
+  overlay.classList.add('active');
+}
+
+// ── SIRI SHORTCUT: ?tomaquetoma ──────────────────────────
+if(window.location.search.includes('tomaquetoma')){
+  if(!isTakenToday()){
+    // Auto-register
+    const entry = { id: Date.now().toString(), ts: new Date().toISOString() };
+    logs.unshift(entry);
+    save();
+    updateMain();
+    showSuperman(fmtTime(entry.ts));
+  }
+  // Clean URL so refreshing doesn't re-register
+  window.history.replaceState({}, '', window.location.pathname);
+}
+</script>
+</body>
+</html>
